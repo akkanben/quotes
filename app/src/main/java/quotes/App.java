@@ -13,10 +13,14 @@ import java.util.Random;
 public class App {
     public static void main(String[] args) {
         File recentQuotesJSONFile = new File("./app/src/main/resources/recentquotes.json");
-        Random rand = new Random();
         Quote[] quotesArray = getQuotesArray(recentQuotesJSONFile);
-        int randomNumber = rand.nextInt(0, quotesArray.length); // upper bound is exclusive
-        System.out.println(getQuote(quotesArray, randomNumber));
+        int randomIndex = getRandomAvailibleIndex(quotesArray.length);
+        System.out.println(getQuote(quotesArray, randomIndex));
+    }
+
+    public static int getRandomAvailibleIndex(int arrayLength) {
+        Random rand = new Random();
+        return rand.nextInt(0, arrayLength); // upper bound is exclusive
     }
 
     public static Quote[] getQuotesArray(File quotesJSONFile) {
