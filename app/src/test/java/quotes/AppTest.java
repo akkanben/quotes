@@ -13,7 +13,6 @@ class AppTest {
 
     @Test
     void test_getquote_specific_quote() {
-        System.out.println(System.getProperty("user.dir"));
         File recentQuotesJSONFile = new File("./src/test/resources/recentquotes.json");
         Quote[] array = App.getQuotesArray(recentQuotesJSONFile);
         String sut = App.getQuote(array, 1);
@@ -23,7 +22,6 @@ class AppTest {
 
     @Test
     void test_getquote_last_quote() {
-        System.out.println(System.getProperty("user.dir"));
         File recentQuotesJSONFile = new File("./src/test/resources/recentquotes.json");
         Quote[] array = App.getQuotesArray(recentQuotesJSONFile);
         String sut = App.getQuote(array, array.length - 1);
@@ -36,10 +34,40 @@ class AppTest {
 
     @Test
     void test_getquotearray_correct_size() {
-        System.out.println(System.getProperty("user.dir"));
         File recentQuotesJSONFile = new File("./src/test/resources/recentquotes.json");
         Quote[] sut = App.getQuotesArray(recentQuotesJSONFile);
         assert(sut.length == 138);
     }
 
+    @Test
+    void test_getquotebyauthor_pass() {
+        File recentQuotesJSONFile = new File("./src/test/resources/recentquotes.json");
+        Quote[] array = App.getQuotesArray(recentQuotesJSONFile);
+        String sut = App.getQuoteByAuthor(array, "Marilyn Monroe");
+        assert(sut.endsWith("Marilyn Monroe"));
+    }
+
+    @Test
+    void test_getquotebyauthor_fail() {
+        File recentQuotesJSONFile = new File("./src/test/resources/recentquotes.json");
+        Quote[] array = App.getQuotesArray(recentQuotesJSONFile);
+        String sut = App.getQuoteByAuthor(array, "potato");
+        assert(sut.endsWith("Nothing found."));
+    }
+
+    @Test
+    void test_getquotebyquotetext_pass() {
+        File recentQuotesJSONFile = new File("./src/test/resources/recentquotes.json");
+        Quote[] array = App.getQuotesArray(recentQuotesJSONFile);
+        String sut = App.getQuoteByQuoteText(array, "The stupid monkey.");
+        assert(sut.endsWith("Richard Rider"));
+    }
+
+    @Test
+    void test_getquotebyquotetext_fail() {
+        File recentQuotesJSONFile = new File("./src/test/resources/recentquotes.json");
+        Quote[] array = App.getQuotesArray(recentQuotesJSONFile);
+        String sut = App.getQuoteByQuoteText(array, "this ONE is not ON the quote list");
+        assert(sut.endsWith("Nothing found."));
+    }
 }

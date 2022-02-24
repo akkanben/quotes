@@ -4,18 +4,83 @@
 package quotes;
 
 import com.google.gson.Gson;
+import org.checkerframework.checker.units.qual.A;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 
 public class App {
     public static void main(String[] args) {
-        File recentQuotesJSONFile = new File("./app/src/main/resources/recentquotes.json");
+        String resourcesPath = getResourcesPath();
+        String recentQuotesFileName = "recentquotes.json";
+        File recentQuotesJSONFile = new File(resourcesPath + recentQuotesFileName);
         Quote[] quotesArray = getQuotesArray(recentQuotesJSONFile);
-        int randomIndex = getRandomAvailibleIndex(quotesArray.length);
-        System.out.println(getQuote(quotesArray, randomIndex));
+
+        if(args.length == 2) {
+            String searchType;
+            String searchText;
+            searchType = args[0];
+            searchText = args[1];
+            String results = getResultsViaQuery(quotesArray, searchType, searchText);
+            System.out.println(results);
+        } else {
+            int randomIndex = getRandomAvailibleIndex(quotesArray.length);
+            System.out.println(getQuote(quotesArray, randomIndex));
+        }
+    }
+
+    public static String getResultsViaQuery(Quote[] quotesArray ,String searchType, String searchText) {
+        if(searchType.equals("author"))
+            return getQuoteByAuthor(quotesArray, searchText);
+        else if (searchType.equals("contains"))
+            return getQuoteByQuoteText(quotesArray, searchText);
+        else
+            return "Nothing found.";
+    }
+
+    public static String getQuoteByAuthor(Quote[] quotesArray, String searchText) {
+        ArrayList<Quote> matchingQuotesList = new ArrayList<>();
+        for(Quote quote : quotesArray) {
+            if(quote.author.equals(searchText))
+                matchingQuotesList.add(quote);
+        }
+        if(matchingQuotesList.size() > 0) {
+            Quote[] matchingQuotesArray = new Quote[matchingQuotesList.size()];
+            for(int i = 0; i < matchingQuotesList.size(); i++)
+                matchingQuotesArray[i] = matchingQuotesList.get(i);
+            int randomIndex = getRandomAvailibleIndex(matchingQuotesArray.length);
+            return getQuote(matchingQuotesArray, randomIndex);
+        } else
+            return "Nothing found.";
+    }
+
+    public static String getQuoteByQuoteText(Quote[] quotesArray, String searchText) {
+        ArrayList<Quote> matchingQuotesList = new ArrayList<>();
+        for(Quote quote : quotesArray) {
+            if(quote.text.contains(searchText))
+                matchingQuotesList.add(quote);
+        }
+        if (matchingQuotesList.size() > 0) {
+            Quote[] matchingQuotesArray = new Quote[matchingQuotesList.size()];
+            for(int i = 0; i < matchingQuotesList.size(); i++)
+                matchingQuotesArray[i] = matchingQuotesList.get(i);
+            int randomIndex = getRandomAvailibleIndex(matchingQuotesArray.length);
+            return getQuote(matchingQuotesArray, randomIndex);
+        } else
+        return "Nothing found.";
+    }
+
+    public static String getResourcesPath() {
+        String userPath = System.getProperty("user.dir");
+        if(userPath.endsWith("app"))
+            return userPath + "/src/main/resources/";
+        else
+            return userPath + "/app/src/main/resources/";
+
     }
 
     public static int getRandomAvailibleIndex(int arrayLength) {
