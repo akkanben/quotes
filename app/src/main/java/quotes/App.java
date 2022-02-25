@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Random;
 
 public class App {
+    static final String HTTP_GET = "GET";
     public static void main(String[] args) {
         String resourcesPath = getResourcesPath();
         String recentQuotesFileName = "recentquotes.json";
@@ -31,6 +32,65 @@ public class App {
             int randomIndex = getRandomAvailibleIndex(quotesArray.length);
             System.out.println(getQuote(quotesArray, randomIndex));
         }
+
+///  Need to incorporate this block >>>>>>>
+
+        File recentQuotesJSONFile = new File("./app/src/main/resources/recentquotes.json");
+//        Random rand = new Random();
+//        Quote[] quotesArray = getQuotesArray(recentQuotesJSONFile);
+//        int randomNumber = rand.nextInt(0, quotesArray.length); // upper bound is exclusive
+//        System.out.println(getQuote(quotesArray, randomNumber));
+        URL apiUrl = new URL("http://api.forismatic.com/api/1.0/?method=getQuote&format=json&lang=en");
+//        URL apiUrl = new URL("");
+        URLConnection apiConnection = apiUrl.openConnection();
+        HttpURLConnection apiHTTPConnection = (HttpURLConnection)apiConnection;
+        apiHTTPConnection.setRequestMethod(HTTP_GET);
+        InputStreamReader streamReader = attemptInputStream(apiHTTPConnection);
+
+        BufferedReader apiBufferedReader = new BufferedReader(streamReader);
+        String apiLine = apiBufferedReader.readLine();
+        Gson gson = null;
+        String deserializedApiQuote = "";
+        try {
+            gson = new GsonBuilder().setPrettyPrinting().create();
+            APIQuote apiQuote = gson.fromJson(apiLine, APIQuote.class);
+            Quote standardizedQuote = apiQuote.standardizeQuote();
+            Quote[] quotesArray = getQuotesArray(recentQuotesJSONFile);
+            Quote[] appendedQuotesArray = getAppendedArr(standardizedQuote, quotesArray);
+            String deserializedAppendedQuotesArray = gson.toJson(appendedQuotesArray);
+            try(FileWriter fileWriter = new FileWriter(recentQuotesJSONFile)) {
+                fileWriter.write(deserializedAppendedQuotesArray);
+            }
+        } catch(JsonSyntaxException JSE) {
+            Random rand = new Random();
+            Quote[] quotesArray = getQuotesArray(recentQuotesJSONFile);
+            int randomNumber = rand.nextInt(0, quotesArray.length); // upper bound is exclusive
+            System.out.println(getQuote(quotesArray, randomNumber));
+        }
+
+/// <<<<< TO HERE
+    }
+
+
+
+
+    public static InputStreamReader attemptInputStream(HttpURLConnection connection) throws IOException {
+        int status = connection.getResponseCode();
+        System.out.println(status);
+        if (status > 299) {
+            return new InputStreamReader(connection.getErrorStream());
+        } else {
+            return new InputStreamReader(connection.getInputStream());
+        }
+    }
+
+    public static Quote[] getAppendedArr(Quote quote, Quote[] quoteArr) {
+        Quote[] appendedArr = new Quote[quoteArr.length + 1];
+        for (int i = 0; i < quoteArr.length; i++) {
+            appendedArr[i] = quoteArr[i];
+        }
+        appendedArr[quoteArr.length] = quote;
+        return appendedArr;
     }
 
     public static String getResultsViaQuery(Quote[] quotesArray ,String searchType, String searchText) {
