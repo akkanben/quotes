@@ -4,79 +4,90 @@
 package quotes;
 
 import com.google.gson.Gson;
-import org.checkerframework.checker.units.qual.A;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Random;
 
 public class App {
     static final String HTTP_GET = "GET";
+
     public static void main(String[] args) {
         String resourcesPath = getResourcesPath();
         String recentQuotesFileName = "recentquotes.json";
         File recentQuotesJSONFile = new File(resourcesPath + recentQuotesFileName);
         Quote[] quotesArray = getQuotesArray(recentQuotesJSONFile);
-
-        if(args.length == 2) {
-            String searchType;
-            String searchText;
-            searchType = args[0];
-            searchText = args[1];
+        // If true we're doing a local search with arguments
+        if (args.length == 2) {
+            String searchType = args[0];
+            String searchText = args[1];
             String results = getResultsViaQuery(quotesArray, searchType, searchText);
             System.out.println(results);
+        // If True we're doing an internet quote that could fail and end up falling back to a local search
+        } else if (args.length == 1 && args[0].equals("internet")) {
+            String apiLine = getApiLine();
+            Quote internetQuote = getInternetQuote(apiLine, quotesArray);
+            appendRecentQuotes(quotesArray, recentQuotesJSONFile, internetQuote);
+            System.out.println(internetQuote);
+        // Else local random quote
         } else {
             int randomIndex = getRandomAvailibleIndex(quotesArray.length);
             System.out.println(getQuote(quotesArray, randomIndex));
         }
+    }
 
-///  Need to incorporate this block >>>>>>>
-
-        File recentQuotesJSONFile = new File("./app/src/main/resources/recentquotes.json");
-//        Random rand = new Random();
-//        Quote[] quotesArray = getQuotesArray(recentQuotesJSONFile);
-//        int randomNumber = rand.nextInt(0, quotesArray.length); // upper bound is exclusive
-//        System.out.println(getQuote(quotesArray, randomNumber));
-        URL apiUrl = new URL("http://api.forismatic.com/api/1.0/?method=getQuote&format=json&lang=en");
-//        URL apiUrl = new URL("");
-        URLConnection apiConnection = apiUrl.openConnection();
-        HttpURLConnection apiHTTPConnection = (HttpURLConnection)apiConnection;
-        apiHTTPConnection.setRequestMethod(HTTP_GET);
-        InputStreamReader streamReader = attemptInputStream(apiHTTPConnection);
-
-        BufferedReader apiBufferedReader = new BufferedReader(streamReader);
-        String apiLine = apiBufferedReader.readLine();
-        Gson gson = null;
-        String deserializedApiQuote = "";
-        try {
-            gson = new GsonBuilder().setPrettyPrinting().create();
-            APIQuote apiQuote = gson.fromJson(apiLine, APIQuote.class);
-            Quote standardizedQuote = apiQuote.standardizeQuote();
-            Quote[] quotesArray = getQuotesArray(recentQuotesJSONFile);
-            Quote[] appendedQuotesArray = getAppendedArr(standardizedQuote, quotesArray);
+    public static void appendRecentQuotes(Quote[] serializedQuotesArray, File appendingFile, Quote quoteToAppend) {
+        try (FileWriter fileWriter = new FileWriter(appendingFile)) {
+            Quote[] appendedQuotesArray = getAppendedArr(quoteToAppend, serializedQuotesArray);
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
             String deserializedAppendedQuotesArray = gson.toJson(appendedQuotesArray);
-            try(FileWriter fileWriter = new FileWriter(recentQuotesJSONFile)) {
-                fileWriter.write(deserializedAppendedQuotesArray);
-            }
-        } catch(JsonSyntaxException JSE) {
-            Random rand = new Random();
-            Quote[] quotesArray = getQuotesArray(recentQuotesJSONFile);
-            int randomNumber = rand.nextInt(0, quotesArray.length); // upper bound is exclusive
-            System.out.println(getQuote(quotesArray, randomNumber));
+            fileWriter.write(deserializedAppendedQuotesArray);
+            System.out.println(fileWriter.getEncoding());
+        } catch (IOException ioe) {
+            System.out.println("Unable to write to file");
+            ioe.printStackTrace();
         }
+    }
 
-/// <<<<< TO HERE
+    public static Quote getInternetQuote(String apiLine, Quote[] quotesArray) {
+        Quote outputQuote = null;
+        try {
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            APIQuote apiQuote = gson.fromJson(apiLine, APIQuote.class);
+            outputQuote = apiQuote.standardizeQuote();
+        } catch (JsonSyntaxException JSE) {
+            int randomIndex = getRandomAvailibleIndex(quotesArray.length);
+            System.out.println(getQuote(quotesArray, randomIndex));
+        }
+        return outputQuote;
+    }
+
+    public static String getApiLine() {
+        String output = "";
+        try {
+            URL apiUrl = new URL("http://api.forismatic.com/api/1.0/?method=getQuote&format=json&lang=en");
+            URLConnection apiConnection = apiUrl.openConnection();
+            HttpURLConnection apiHTTPConnection = (HttpURLConnection) apiConnection;
+            apiHTTPConnection.setRequestMethod(HTTP_GET);
+            InputStreamReader streamReader = getInputStreamOrErrorStream(apiHTTPConnection);
+            BufferedReader apiBufferedReader = new BufferedReader(streamReader);
+            output = apiBufferedReader.readLine();
+        } catch (IOException ioe) {
+            System.out.println("Unable to create connection");
+            ioe.printStackTrace();
+        }
+        return output;
     }
 
 
-
-
-    public static InputStreamReader attemptInputStream(HttpURLConnection connection) throws IOException {
+    public static InputStreamReader getInputStreamOrErrorStream(HttpURLConnection connection) throws IOException {
         int status = connection.getResponseCode();
-        System.out.println(status);
         if (status > 299) {
             return new InputStreamReader(connection.getErrorStream());
         } else {
@@ -140,7 +151,6 @@ public class App {
             return userPath + "/src/main/resources/";
         else
             return userPath + "/app/src/main/resources/";
-
     }
 
     public static int getRandomAvailibleIndex(int arrayLength) {
