@@ -5,9 +5,16 @@ package quotes;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLConnection;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static quotes.App.getInputStreamOrErrorStream;
 
 class AppTest {
 
@@ -70,4 +77,59 @@ class AppTest {
         String sut = App.getQuoteByQuoteText(array, "this ONE is not ON the quote list");
         assert(sut.endsWith("Nothing found."));
     }
+
+    @Test
+    void test_getinternetquote() {
+        File recentQuotesJSONFile = new File("./src/test/resources/recentquotes.json");
+        String forsmaticApiUrl = "http://api.forismatic.com/api/1.0/?method=getQuote&format=json&lang=en";
+        Quote[] array = App.getQuotesArray(recentQuotesJSONFile);
+        String apiLine = App.getApiLine(forsmaticApiUrl);
+        Quote sut = App.getInternetQuote(apiLine, array);
+        assertNotNull(sut);
+    }
+
+    @Test
+    void test_getinternetquote_bad_api_response() {
+        File recentQuotesJSONFile = new File("./src/test/resources/recentquotes.json");
+        Quote[] array = App.getQuotesArray(recentQuotesJSONFile);
+        String badForsmaticApiUrl = "http://api.forismatic.com/api/1.0/BADBADBAD";
+        String apiLine = App.getApiLine(badForsmaticApiUrl);
+        Quote sut = App.getInternetQuote(apiLine, array);
+        assertNull(sut);
+    }
+
+    @Test
+    void test_getapiline() {
+        String apiLine;
+        String forsmaticApiUrl = "http://api.forismatic.com/api/1.0/?method=getQuote&format=json&lang=en";
+        apiLine = App.getApiLine(forsmaticApiUrl);
+        assertNotEquals(apiLine, "");
+    }
+
+    @Test
+    void test_getappendedarray() {
+        File recentQuotesJSONFile = new File("./src/test/resources/recentquotes.json");
+        Quote[] array = App.getQuotesArray(recentQuotesJSONFile);
+        Quote quote = new Quote("test author", "test text");
+        Quote[] sut = App.getAppendedArray(quote, array);
+        assert(sut.length == array.length + 1);
+    }
+
+    @Test
+    void test_getinputstreamorerrorstream() {
+        try {
+            String forsmaticApiUrl = "http://api.forismatic.com/api/1.0/?method=getQuote&format=json&lang=en";
+            URL apiUrl = new URL(forsmaticApiUrl);
+            URLConnection apiConnection = apiUrl.openConnection();
+            HttpURLConnection apiHTTPConnection = (HttpURLConnection) apiConnection;
+            apiHTTPConnection.setRequestMethod("GET");
+            InputStreamReader sut = getInputStreamOrErrorStream(apiHTTPConnection);
+            assertNotNull(sut);
+        } catch (IOException ioe) {
+            System.out.println("Unable to create connection");
+            ioe.printStackTrace();
+        }
+    }
+
+
 }

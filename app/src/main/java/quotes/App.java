@@ -9,9 +9,9 @@ import com.google.gson.JsonSyntaxException;
 
 import java.io.*;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -21,6 +21,7 @@ public class App {
     public static void main(String[] args) {
         String resourcesPath = getResourcesPath();
         String recentQuotesFileName = "recentquotes.json";
+        String forsmaticApiUrl = "http://api.forismatic.com/api/1.0/?method=getQuote&format=json&lang=en";
         File recentQuotesJSONFile = new File(resourcesPath + recentQuotesFileName);
         Quote[] quotesArray = getQuotesArray(recentQuotesJSONFile);
         // If true we're doing a local search with arguments
@@ -31,7 +32,7 @@ public class App {
             System.out.println(results);
         // If True we're doing an internet quote that could fail and end up falling back to a local search
         } else if (args.length == 1 && args[0].equals("internet")) {
-            String apiLine = getApiLine();
+            String apiLine = getApiLine(forsmaticApiUrl);
             Quote internetQuote = getInternetQuote(apiLine, quotesArray);
             appendRecentQuotes(quotesArray, recentQuotesJSONFile, internetQuote);
             System.out.println(internetQuote);
@@ -44,11 +45,10 @@ public class App {
 
     public static void appendRecentQuotes(Quote[] serializedQuotesArray, File appendingFile, Quote quoteToAppend) {
         try (FileWriter fileWriter = new FileWriter(appendingFile)) {
-            Quote[] appendedQuotesArray = getAppendedArr(quoteToAppend, serializedQuotesArray);
+            Quote[] appendedQuotesArray = getAppendedArray(quoteToAppend, serializedQuotesArray);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             String deserializedAppendedQuotesArray = gson.toJson(appendedQuotesArray);
             fileWriter.write(deserializedAppendedQuotesArray);
-            System.out.println(fileWriter.getEncoding());
         } catch (IOException ioe) {
             System.out.println("Unable to write to file");
             ioe.printStackTrace();
@@ -68,10 +68,10 @@ public class App {
         return outputQuote;
     }
 
-    public static String getApiLine() {
+    public static String getApiLine(String urlString) {
         String output = "";
         try {
-            URL apiUrl = new URL("http://api.forismatic.com/api/1.0/?method=getQuote&format=json&lang=en");
+            URL apiUrl = new URL(urlString);
             URLConnection apiConnection = apiUrl.openConnection();
             HttpURLConnection apiHTTPConnection = (HttpURLConnection) apiConnection;
             apiHTTPConnection.setRequestMethod(HTTP_GET);
@@ -95,13 +95,11 @@ public class App {
         }
     }
 
-    public static Quote[] getAppendedArr(Quote quote, Quote[] quoteArr) {
-        Quote[] appendedArr = new Quote[quoteArr.length + 1];
-        for (int i = 0; i < quoteArr.length; i++) {
-            appendedArr[i] = quoteArr[i];
-        }
-        appendedArr[quoteArr.length] = quote;
-        return appendedArr;
+    public static Quote[] getAppendedArray(Quote quote, Quote[] quoteArray) {
+        Quote[] appendedArray = new Quote[quoteArray.length + 1];
+        System.arraycopy(quoteArray, 0, appendedArray, 0, quoteArray.length);
+        appendedArray[quoteArray.length] = quote;
+        return appendedArray;
     }
 
     public static String getResultsViaQuery(Quote[] quotesArray ,String searchType, String searchText) {
