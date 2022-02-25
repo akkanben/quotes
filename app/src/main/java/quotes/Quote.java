@@ -1,12 +1,15 @@
 package quotes;
 
-import java.util.Arrays;
-
 public class Quote {
     String[] tags;
     public String author;
     String likes;
     String text;
+
+    public Quote(String author, String text) {
+        this.author = author;
+        this.text = text;
+    }
 
     public Quote(String[] tags, String author, String likes, String text) {
         this.tags = tags;
@@ -17,11 +20,6 @@ public class Quote {
 
     @Override
     public String toString() {
-        return "Quote{" +
-                "tags=" + Arrays.toString(tags) +
-                ", author='" + author + '\'' +
-                ", likes='" + likes + '\'' +
-                ", text='" + text + '\'' +
-                '}';
+        return text + "\n-- " + author;
     }
 }

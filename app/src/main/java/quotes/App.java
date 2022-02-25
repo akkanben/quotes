@@ -4,33 +4,102 @@
 package quotes;
 
 import com.google.gson.Gson;
-import org.checkerframework.checker.units.qual.A;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.http.HttpResponse;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Random;
 
 public class App {
+    static final String HTTP_GET = "GET";
+
     public static void main(String[] args) {
         String resourcesPath = getResourcesPath();
         String recentQuotesFileName = "recentquotes.json";
+        String forsmaticApiUrl = "http://api.forismatic.com/api/1.0/?method=getQuote&format=json&lang=en";
         File recentQuotesJSONFile = new File(resourcesPath + recentQuotesFileName);
         Quote[] quotesArray = getQuotesArray(recentQuotesJSONFile);
-
-        if(args.length == 2) {
-            String searchType;
-            String searchText;
-            searchType = args[0];
-            searchText = args[1];
+        // If true we're doing a local search with arguments
+        if (args.length == 2) {
+            String searchType = args[0];
+            String searchText = args[1];
             String results = getResultsViaQuery(quotesArray, searchType, searchText);
             System.out.println(results);
+        // If True we're doing an internet quote that could fail and end up falling back to a local search
+        } else if (args.length == 1 && args[0].equals("internet")) {
+            String apiLine = getApiLine(forsmaticApiUrl);
+            Quote internetQuote = getInternetQuote(apiLine, quotesArray);
+            appendRecentQuotes(quotesArray, recentQuotesJSONFile, internetQuote);
+            System.out.println(internetQuote);
+        // Else local random quote
         } else {
             int randomIndex = getRandomAvailibleIndex(quotesArray.length);
             System.out.println(getQuote(quotesArray, randomIndex));
         }
+    }
+
+    public static void appendRecentQuotes(Quote[] serializedQuotesArray, File appendingFile, Quote quoteToAppend) {
+        try (FileWriter fileWriter = new FileWriter(appendingFile)) {
+            Quote[] appendedQuotesArray = getAppendedArray(quoteToAppend, serializedQuotesArray);
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            String deserializedAppendedQuotesArray = gson.toJson(appendedQuotesArray);
+            fileWriter.write(deserializedAppendedQuotesArray);
+        } catch (IOException ioe) {
+            System.out.println("Unable to write to file");
+            ioe.printStackTrace();
+        }
+    }
+
+    public static Quote getInternetQuote(String apiLine, Quote[] quotesArray) {
+        Quote outputQuote = null;
+        try {
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            APIQuote apiQuote = gson.fromJson(apiLine, APIQuote.class);
+            outputQuote = apiQuote.standardizeQuote();
+        } catch (JsonSyntaxException JSE) {
+            int randomIndex = getRandomAvailibleIndex(quotesArray.length);
+            System.out.println(getQuote(quotesArray, randomIndex));
+        }
+        return outputQuote;
+    }
+
+    public static String getApiLine(String urlString) {
+        String output = "";
+        try {
+            URL apiUrl = new URL(urlString);
+            URLConnection apiConnection = apiUrl.openConnection();
+            HttpURLConnection apiHTTPConnection = (HttpURLConnection) apiConnection;
+            apiHTTPConnection.setRequestMethod(HTTP_GET);
+            InputStreamReader streamReader = getInputStreamOrErrorStream(apiHTTPConnection);
+            BufferedReader apiBufferedReader = new BufferedReader(streamReader);
+            output = apiBufferedReader.readLine();
+        } catch (IOException ioe) {
+            System.out.println("Unable to create connection");
+            ioe.printStackTrace();
+        }
+        return output;
+    }
+
+
+    public static InputStreamReader getInputStreamOrErrorStream(HttpURLConnection connection) throws IOException {
+        int status = connection.getResponseCode();
+        if (status > 299) {
+            return new InputStreamReader(connection.getErrorStream());
+        } else {
+            return new InputStreamReader(connection.getInputStream());
+        }
+    }
+
+    public static Quote[] getAppendedArray(Quote quote, Quote[] quoteArray) {
+        Quote[] appendedArray = new Quote[quoteArray.length + 1];
+        System.arraycopy(quoteArray, 0, appendedArray, 0, quoteArray.length);
+        appendedArray[quoteArray.length] = quote;
+        return appendedArray;
     }
 
     public static String getResultsViaQuery(Quote[] quotesArray ,String searchType, String searchText) {
@@ -80,7 +149,6 @@ public class App {
             return userPath + "/src/main/resources/";
         else
             return userPath + "/app/src/main/resources/";
-
     }
 
     public static int getRandomAvailibleIndex(int arrayLength) {
